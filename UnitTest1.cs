@@ -11,7 +11,7 @@ namespace CodeDojo.TestFantastico
         {
         }
 
-        [TestCaseRandomStrings(5, 10, 6)]
+        [TestCaseRandomStrings(5, 10, 8)]
         public void Test1(string randomString)
         {
             Assert.AreEqual("a", randomString);

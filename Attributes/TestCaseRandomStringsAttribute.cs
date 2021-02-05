@@ -17,6 +17,7 @@ namespace CodeDojo.TestFantastico.Attributes
         private const string special = "!£$%&@()<>#{}[]\\?/";
 
         private readonly NUnitTestCaseBuilder _builder = new NUnitTestCaseBuilder();
+        private readonly Random random = new Random();
 
         public int Min { get; }
 
@@ -58,7 +59,7 @@ namespace CodeDojo.TestFantastico.Attributes
         {
             var testCaseData = new List<TestCaseData>();
 
-            testCaseData.AddRange(StringTests(6));
+            testCaseData.AddRange(StringTests(Length));
 
             if (Min > 0)
             {
@@ -83,16 +84,15 @@ namespace CodeDojo.TestFantastico.Attributes
         {
             return new List<TestCaseData>
             {
-                new TestCaseData(RandomString(6, alphaNumeric)),
-                new TestCaseData(RandomString(6, numberic)),
-                new TestCaseData(RandomString(6, alphaUpper)),
-                new TestCaseData(RandomString(6, alphaLower)),
-                new TestCaseData(RandomString(6, special))
+                new TestCaseData(RandomString(charLength, alphaNumeric)),
+                new TestCaseData(RandomString(charLength, numberic)),
+                new TestCaseData(RandomString(charLength, alphaUpper)),
+                new TestCaseData(RandomString(charLength, alphaLower)),
+                new TestCaseData(RandomString(charLength, special))
             };
         }
 
-        private static Random random = new Random();
-        public static string RandomString(int length, string source)
+        private string RandomString(int length, string source)
         {
             return new string(Enumerable.Repeat(source, length)
               .Select(s => s[random.Next(s.Length)]).ToArray());
