@@ -14,23 +14,24 @@ namespace CodeDojo.TestFantastico.Attributes
         private const string numberic = "0123456789";
         private const string alphaUpper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         private const string alphaLower = "abcdefghijklmnopqrstuvwxyz";
-        private const string special = "!£$%&@()<>#{}[]\\?/";
+        //private const string special = "!£$%&@()<>#{}[]\\?/";
+        private const string special = "!";
 
         private readonly NUnitTestCaseBuilder _builder = new NUnitTestCaseBuilder();
-        private readonly Random random = new Random();
+        private readonly Randomizer random = TestContext.CurrentContext.Random;
 
         public int Min { get; }
 
         public int Max { get; }
 
-        public int Length { get; }
+        public bool ExcludeSpecialCharacters { get; }
 
 
-        public TestCaseRandomStringsAttribute(int min = 0, int max = 0, int length = 6)
+        public TestCaseRandomStringsAttribute(int min = 0, int max = 0, bool excludeSpecialChars = false)
         {
             Min = min;
             Max = max;
-            Length = length;
+            ExcludeSpecialCharacters = excludeSpecialChars;
         }
 
         public IEnumerable<TestMethod> BuildFrom(IMethodInfo method, Test suite)
@@ -59,16 +60,16 @@ namespace CodeDojo.TestFantastico.Attributes
         {
             var testCaseData = new List<TestCaseData>();
 
-            testCaseData.AddRange(StringTests(Length));
+            testCaseData.AddRange(StringTests(Min));
 
             if (Min > 0)
             {
-                testCaseData.AddRange(BoundaryTests(Min));
+                testCaseData.AddRange(BoundaryTestsMin(Min));
             }
 
             if (Max > 0 && Max > Min)
             {
-                testCaseData.AddRange(BoundaryTests(Max));
+                testCaseData.AddRange(BoundaryTestsMax(Max));
             }
 
             return testCaseData;
@@ -80,22 +81,47 @@ namespace CodeDojo.TestFantastico.Attributes
                     .Select(x => new TestCaseData(RandomString(x, alphaNumeric)));
         }
 
+        private IEnumerable<TestCaseData> BoundaryTestsMin(int charLength)
+        {
+            return new List<TestCaseData>
+            {
+                new TestCaseData(RandomString(charLength - 1, alphaNumeric)).Returns(false),
+                new TestCaseData(RandomString(charLength, alphaNumeric)).Returns(true),
+                new TestCaseData(RandomString(charLength + 1, alphaNumeric)).Returns(true)
+            };
+        }
+
+        private IEnumerable<TestCaseData> BoundaryTestsMax(int charLength)
+        {
+            return new List<TestCaseData>
+            {
+                new TestCaseData(RandomString(charLength - 1, alphaNumeric)).Returns(true),
+                new TestCaseData(RandomString(charLength, alphaNumeric)).Returns(true),
+                new TestCaseData(RandomString(charLength + 1, alphaNumeric)).Returns(false)
+            };
+        }
+
         private IEnumerable<TestCaseData> StringTests(int charLength)
         {
             return new List<TestCaseData>
             {
-                new TestCaseData(RandomString(charLength, alphaNumeric)),
-                new TestCaseData(RandomString(charLength, numberic)),
-                new TestCaseData(RandomString(charLength, alphaUpper)),
-                new TestCaseData(RandomString(charLength, alphaLower)),
-                new TestCaseData(RandomString(charLength, special))
+                new TestCaseData(RandomString(charLength, alphaNumeric)).Returns(true),
+                new TestCaseData(RandomString(charLength, numberic)).Returns(true),
+                new TestCaseData(RandomString(charLength, alphaUpper)).Returns(true),
+                new TestCaseData(RandomString(charLength, alphaLower)).Returns(true),
+                new TestCaseData(RandomString(charLength, special)).Returns(!ExcludeSpecialCharacters)
             };
         }
 
         private string RandomString(int length, string source)
         {
-            return new string(Enumerable.Repeat(source, length)
-              .Select(s => s[random.Next(s.Length)]).ToArray());
+            var stringChars = new char[length];
+            for (int i = 0; i < length; i++)
+            {
+                stringChars[i] = source[random.Next(source.Length)];
+            }
+
+            return new string(stringChars);
         }
     }
 }
