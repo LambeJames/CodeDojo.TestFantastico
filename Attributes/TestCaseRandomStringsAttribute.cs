@@ -2,36 +2,44 @@
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Builders;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace CodeDojo.TestFantastico.Attributes
 {
     public class TestCaseRandomStringsAttribute : NUnitAttribute, ITestBuilder, IImplyFixture
     {
-        private const string alphaNumeric = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        private const string numberic = "0123456789";
-        private const string alphaUpper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        private const string alphaLower = "abcdefghijklmnopqrstuvwxyz";
-        //private const string special = "!£$%&@()<>#{}[]\\?/";
-        private const string special = "!";
+        private const string Numeric = "0123456789";
+        private const string AlphaUpper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        private const string AlphaLower = "abcdefghijklmnopqrstuvwxyz";
+        private const string Special = "!£$%&@()<>#{}[]\\?/";
 
         private readonly NUnitTestCaseBuilder _builder = new NUnitTestCaseBuilder();
-        private readonly Randomizer random = TestContext.CurrentContext.Random;
+        private readonly Randomizer _random = TestContext.CurrentContext.Random;
 
         public int Min { get; }
 
         public int Max { get; }
 
         public bool ExcludeSpecialCharacters { get; }
+        public bool ExcludeLowercase { get; }
+        public bool ExcludeUppercase { get; }
+        public bool ExcludeNumeric { get; }
 
 
-        public TestCaseRandomStringsAttribute(int min = 0, int max = 0, bool excludeSpecialChars = false)
+        public TestCaseRandomStringsAttribute(
+            int min = 0,
+            int max = 0,
+            bool excludeSpecialChars = false,
+            bool excludeLowercase = false,
+            bool excludeUppercase = false,
+            bool excludeNumeric = false)
         {
             Min = min;
             Max = max;
             ExcludeSpecialCharacters = excludeSpecialChars;
+            ExcludeLowercase = excludeLowercase;
+            ExcludeUppercase = excludeUppercase;
+            ExcludeNumeric = excludeNumeric;
         }
 
         public IEnumerable<TestMethod> BuildFrom(IMethodInfo method, Test suite)
@@ -59,45 +67,46 @@ namespace CodeDojo.TestFantastico.Attributes
         public IEnumerable<TestCaseData> BuildTestCaseData()
         {
             var testCaseData = new List<TestCaseData>();
+            var baseString = !ExcludeLowercase
+                ? AlphaLower
+                : !ExcludeUppercase
+                    ? AlphaUpper
+                    : !ExcludeSpecialCharacters
+                        ? Special
+                        : Numeric;
 
             testCaseData.AddRange(StringTests(Min));
 
             if (Min > 0)
             {
-                testCaseData.AddRange(BoundaryTestsMin(Min));
+                testCaseData.AddRange(BoundaryTestsMin(Min, baseString));
             }
 
             if (Max > 0 && Max > Min)
             {
-                testCaseData.AddRange(BoundaryTestsMax(Max));
+                testCaseData.AddRange(BoundaryTestsMax(Max, baseString));
             }
 
             return testCaseData;
         }
 
-        private IEnumerable<TestCaseData> BoundaryTests(int charLength)
-        {
-            return Enumerable.Range(charLength - 1, 3)
-                    .Select(x => new TestCaseData(RandomString(x, alphaNumeric)));
-        }
-
-        private IEnumerable<TestCaseData> BoundaryTestsMin(int charLength)
+        private IEnumerable<TestCaseData> BoundaryTestsMin(int charLength, string baseString)
         {
             return new List<TestCaseData>
             {
-                new TestCaseData(RandomString(charLength - 1, alphaNumeric)).Returns(false),
-                new TestCaseData(RandomString(charLength, alphaNumeric)).Returns(true),
-                new TestCaseData(RandomString(charLength + 1, alphaNumeric)).Returns(true)
+                new TestCaseData(RandomString(charLength - 1, baseString)).Returns(false),
+                new TestCaseData(RandomString(charLength, baseString)).Returns(true),
+                new TestCaseData(RandomString(charLength + 1, baseString)).Returns(true)
             };
         }
 
-        private IEnumerable<TestCaseData> BoundaryTestsMax(int charLength)
+        private IEnumerable<TestCaseData> BoundaryTestsMax(int charLength, string baseString)
         {
             return new List<TestCaseData>
             {
-                new TestCaseData(RandomString(charLength - 1, alphaNumeric)).Returns(true),
-                new TestCaseData(RandomString(charLength, alphaNumeric)).Returns(true),
-                new TestCaseData(RandomString(charLength + 1, alphaNumeric)).Returns(false)
+                new TestCaseData(RandomString(charLength - 1, baseString)).Returns(true),
+                new TestCaseData(RandomString(charLength, baseString)).Returns(true),
+                new TestCaseData(RandomString(charLength + 1, baseString)).Returns(false)
             };
         }
 
@@ -105,20 +114,28 @@ namespace CodeDojo.TestFantastico.Attributes
         {
             return new List<TestCaseData>
             {
-                new TestCaseData(RandomString(charLength, alphaNumeric)).Returns(true),
-                new TestCaseData(RandomString(charLength, numberic)).Returns(true),
-                new TestCaseData(RandomString(charLength, alphaUpper)).Returns(true),
-                new TestCaseData(RandomString(charLength, alphaLower)).Returns(true),
-                new TestCaseData(RandomString(charLength, special)).Returns(!ExcludeSpecialCharacters)
+                new TestCaseData(RandomString(charLength, AlphaUpper, Numeric)).Returns(!ExcludeNumeric && !ExcludeUppercase),
+                new TestCaseData(RandomString(charLength, AlphaLower, Numeric)).Returns(!ExcludeNumeric && !ExcludeLowercase),
+                new TestCaseData(RandomString(charLength, Numeric)).Returns(!ExcludeNumeric),
+                new TestCaseData(RandomString(charLength, AlphaUpper)).Returns(!ExcludeUppercase),
+                new TestCaseData(RandomString(charLength, AlphaLower)).Returns(!ExcludeLowercase),
+                new TestCaseData(RandomString(charLength, Special)).Returns(!ExcludeSpecialCharacters)
             };
+        }
+
+        private string RandomString(int length, string source1, string source2)
+        {
+            var source1Length = (length - 1) / 2;
+            var source2Length = (length - 1) / 2 + 1;
+            return $"{RandomString(source1Length, source1)}{RandomString(source2Length, source2)}";
         }
 
         private string RandomString(int length, string source)
         {
             var stringChars = new char[length];
-            for (int i = 0; i < length; i++)
+            for (var i = 0; i < length; i++)
             {
-                stringChars[i] = source[random.Next(source.Length)];
+                stringChars[i] = source[_random.Next(source.Length)];
             }
 
             return new string(stringChars);
